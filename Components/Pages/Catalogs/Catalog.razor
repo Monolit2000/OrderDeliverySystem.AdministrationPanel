@@ -1,0 +1,21 @@
+﻿@page "/Catalog"
+@inherits CatalogBase
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+
+
+
+@if(Items == null)
+{
+    <h3>Loading catalog ...</h3>
+}
+else
+{
+    <h3>Catalog</h3>
+
+    //<DisplayItem Items = "@Items"></DisplayItem>
+
+    <DisplayItemToTable Items="@Items"></DisplayItemToTable>
+}
+

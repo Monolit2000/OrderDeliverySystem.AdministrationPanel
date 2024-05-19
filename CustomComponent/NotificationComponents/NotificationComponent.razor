@@ -1,0 +1,12 @@
+﻿
+<div class="notification @(Type.ToLower())">
+    @Message
+</div>
+
+@code {
+    [Parameter]
+    public string Message { get; set; }
+
+    [Parameter]
+    public string Type { get; set; }
+}

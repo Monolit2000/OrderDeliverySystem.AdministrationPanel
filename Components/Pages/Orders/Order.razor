@@ -1,0 +1,18 @@
+﻿@page "/Order"
+@attribute [StreamRendering]
+@inherits OrderBase
+@rendermode InteractiveServer
+
+
+@if (Orders == null)
+{
+    <h3>Loading orders ...</h3>
+}
+else
+{
+    <DisplayOrders Orders="@Orders"></DisplayOrders>
+}
+
+@code {
+    string? name, addr1, city, zip;
+}

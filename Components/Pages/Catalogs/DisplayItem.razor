@@ -1,0 +1,17 @@
+﻿@inherits DisplayItemBase
+
+
+@foreach (var item in Items)
+{
+    var itemByDay = item.Items.First();
+
+    <div class="col-md-3 mb-2">
+        <a href="#">
+            <div class="card">
+                <h5>@itemByDay.Name</h5>
+            </div>
+        </a>
+    </div>
+}
+
+

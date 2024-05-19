@@ -1,0 +1,22 @@
+﻿@inherits DisplayItemToTableBase
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Items)
+        {
+            var itemByDay = item.Items.First();
+                <tr>
+                    <td>@item.Day</td>
+                    <td>@itemByDay.Name</td>
+                    <td>@itemByDay.Price</td>
+                </tr>
+        }
+    </tbody>
+</table>
