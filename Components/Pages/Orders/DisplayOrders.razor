@@ -207,22 +207,20 @@
         if (order == null)
         {
             var errorMesage = $"Order not found for OrderId: {orderId}";
-            Console.WriteLine(errorMesage);
             await ShowMessageAsync(errorMesage, "error");
             return;
         }
 
         order.Status = Enum.Parse<Status>(newStatus).ToString();
 
-      
         var result = await orderService.ChangeOrderStatus(order.OrderId, newStatus);
         if(!result.IsSuccess)
         {
             await ShowMessageAsync($"{result.Error}", "error");
             await LoadOrdersAsync();
+
             return;
         }
-        
 
         await ShowMessageAsync($"Status changed for OrderId: {orderId} to {newStatus}");
 
