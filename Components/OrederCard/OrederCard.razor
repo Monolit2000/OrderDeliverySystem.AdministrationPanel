@@ -1,0 +1,145 @@
+﻿@inherits OrederCardBase
+@using OrderDeliverySystem.AdministrationPanel.CustomComponent.NotificationComponents
+@using OrderDeliverySystem.AdministrationPanel.Services.Order.Models;
+@inject IJSRuntime JS
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
+@using OrderDeliverySystem.AdministrationPanel.Components.OrederCard;
+@inject IOrderService orderService
+
+@code {
+    private void ShowOrderDetails(OrderDto order)
+    {
+        Show(order);
+    }
+
+    private OrderDto OrderDetails;
+    private bool IsVisible;
+
+    public void Show(OrderDto order)
+    {
+        OrderDetails = order;
+        IsVisible = true;
+    }
+
+    private void Hide()
+    {
+        IsVisible = false;
+    }
+
+
+    private async Task ShowMessageAsync(string message, string type = "success")
+    {
+        await JS.InvokeVoidAsync("showNotification", message, type);
+
+    }
+
+    private async void OnStatusChange(Guid orderId, string newStatus)
+    {
+        //var order = Orders.FirstOrDefault(o => o.OrderId == orderId);
+
+        if (Order == null)
+        {
+            var errorMesage = $"Order not found for OrderId: {orderId}";
+            await ShowMessageAsync(errorMesage, "error");
+            return;
+        }
+
+        Order.Status = Enum.Parse<Status>(newStatus).ToString();
+
+        var result = await orderService.ChangeOrderStatus(Order.OrderId, newStatus);
+        if (!result.IsSuccess)
+        {
+            await ShowMessageAsync($"{result.Error}", "error");
+            //await LoadOrdersAsync();
+
+
+            return;
+        }
+
+        await ShowMessageAsync($"Status changed for OrderId: {orderId} to {newStatus}");
+
+       // await LoadOrdersAsync();
+
+    }
+    
+    // private async Task LoadOrdersAsync()
+    // {
+    //     Oders = await orderService.GetAllOrders();
+    //     StateHasChanged();
+    // }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Submitted" => "status-submitted",
+            "Paid" => "status-paid",
+            "Shipped" => "status-shipped",
+            "Delivered" => "status-delivered",
+            "Cancelled" => "status-cancelled",
+            _ => ""
+        };
+    }
+}
+
+<div class="order-card">
+    <div class="order-number">
+        1
+    </div>
+
+    <div class="customer"> 
+        <strong> Name </strong>
+        <span>Tel</span>
+    </div>
+
+    <div class="order"> 
+        <p> Name </p>
+    </div>
+    
+    <div class="paid">
+        <strongg> Name </strongg>
+    </div>
+
+    <div class="DeadLine">
+        <p> Name </p>
+    </div>
+
+    <div class="status">
+        <select class="form-control @(GetStatusClass(Order.Status))" @onchange="(e) => OnStatusChange(Order.OrderId, e.Value.ToString())">
+            @foreach (var item in Enum.GetNames<Status>())
+            {
+                <option value="@item" selected="@(item == Order.Status.ToString())">@item</option>
+            }
+        </select>
+    </div>
+
+    <div class="created">
+        <p> Name </p>
+    </div>
+
+    <div class="actions">
+        <p> Name </p>
+    </div>
+
+</div>
+
+<style>
+    .order-card {
+        border: 1px solid var(--dark-color);
+        background: rgba(0, 128, 0, 0.5);
+        border-radius: 3cap;
+        padding: 1px 20px;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-gap: 100px;
+        margin-top: 10px;
+        align-items: center;
+        // text-align: center;
+    }
+
+    .customer {
+        display: flex;
+        flex-direction: column;
+    }
+
+</style>

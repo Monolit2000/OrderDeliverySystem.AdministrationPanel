@@ -1,0 +1,146 @@
+﻿@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+
+
+@page "/menu-item"
+
+
+<div class="card">
+    <div class="card-img-container">
+        <img src="@MenuItem.PictureUri" class="-icardmg-top" alt="@MenuItem.Name">
+    </div>
+    <div class="card-body">
+        <strong>@MenuItem.Deadline.ToString("dd.MM.yyyy")</strong>
+        <h5 class="card-title">@MenuItem.Name</h5>
+        <p class="card-text">@MenuItem.Description</p>
+        <p class="card-text"><strong>Price: </strong> @MenuItem.Price.ToString("C")</p>
+        <div class="card-actions">
+            <a href="/edit-product/@MenuItem.Id.ToString()" class="btn btn-primary card-button">Edit</a>
+            <button @onclick="DeleteItem" class="btn btn-danger card-button">Delete</button>
+        </div>
+    </div>
+    <div class="card-footer">
+        <button class="arrow-button arrow-left" @onclick="OnLeftArrowClick">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="arrow-button arrow-right" @onclick="OnRightArrowClick">
+            <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public CatalogItem MenuItem { get; set; }
+
+    [Parameter]
+    public EventCallback OnItemDeleted { get; set; }
+
+    private async Task DeleteItem()
+    {
+        await CatalogService.RemoveItemAsync(MenuItem.Id);
+        await OnItemDeleted.InvokeAsync();
+    }
+
+    private async Task OnLeftArrowClick()
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = MenuItem.Id,
+                TimeToItemExist = MenuItem.Deadline.AddDays(-1)
+            };
+        await CatalogService.UpdateItemAsync(editItemRequest);
+        await OnItemDeleted.InvokeAsync();
+    }
+
+    private async Task OnRightArrowClick()
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = MenuItem.Id,
+                TimeToItemExist = MenuItem.Deadline.AddDays(1)
+            };
+        await CatalogService.UpdateItemAsync(editItemRequest);
+        await OnItemDeleted.InvokeAsync();
+    }
+}
+
+<style>
+    .card {
+        display: flex;
+        flex-direction: column;
+        width: 20rem; /* Фиксированная ширина карточки */
+        height: 30rem; /* Фиксированная высота карточки */
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin: 10px; /* Отступы для карточек */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+    .card-img-container {
+        height: 33%; /* Высота контейнера для изображения */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+        .card-img-container img {
+            width: 100%; /* Ширина изображения занимает всю ширину контейнера */
+            height: 100%; /* Высота изображения занимает всю высоту контейнера */
+            object-fit: cover; /* Обрезать изображение, чтобы оно заполнило контейнер */
+        }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        padding: 15px; /* Отступы для содержимого */
+    }
+
+    .card-title {
+        margin-bottom: 10px; /* Отступ снизу для заголовка */
+    }
+
+    .card-text {
+        font-size: 1rem; /* Размер шрифта для текста */
+        color: #333; /* Цвет текста */
+        flex-grow: 1; /* Позволяет тексту занимать оставшееся пространство */
+    }
+
+    .card-actions {
+        display: flex;
+        justify-content: center; /* Расположить кнопки по краям */
+        margin-top: auto; /* Поместить кнопки внизу карточки */
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        background-color: #f8f9fa;
+    }
+
+    .arrow-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.5rem; /* Размер стрелочек */
+        color: #007bff; /* Цвет стрелочек */
+    }
+
+    .card-button {
+        width: 100px; /* Установите желаемую ширину */
+        height: 40px; /* Установите желаемую высоту */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0;
+    }
+
+</style>
+
+
+

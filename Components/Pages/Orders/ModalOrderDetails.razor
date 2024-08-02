@@ -1,0 +1,99 @@
+﻿@using OrderDeliverySystem.AdministrationPanel.CustomComponent.NotificationComponents
+@using OrderDeliverySystem.AdministrationPanel.Services.Order.Models;
+@inject IJSRuntime JS
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
+@using OrderDeliverySystem.AdministrationPanel.Components.OrederCard;
+
+@code
+{
+    [Parameter]
+    public OrderDto OrderDetails { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+
+    public void Show(OrderDto order)
+    {
+        OrderDetails = order;
+        IsVisible = true;
+    }
+
+    private void Hide()
+    {
+        IsVisible = false;
+    }
+}
+
+<div class="modal" style="display: @(IsVisible ? "block" : "none")">
+    <div class="modal-dialog">
+        <div class="modal-content custom-modal-content">
+            <div class="modal-header custom-modal-header">
+                <h5 class="modal-title">Order Details</h5>
+                <button type="button" class="close custom-close-button" @onclick="Hide">&times;</button>
+            </div>
+            <div class="modal-body custom-modal-body">
+                @if (OrderDetails != null)
+                {
+                    <p>OrderId: @OrderDetails.OrderId</p>
+                    <p>BuyerId: @OrderDetails.BuyerId</p>
+                    <ul>
+                        @foreach (var item in OrderDetails.OrderItems)
+                        {
+                            <li>Items: @item.ProductName   </li>
+                        }
+                    </ul>
+                    <p>Status: @OrderDetails.Status</p>
+                    <p>Description: @OrderDetails.Description</p>
+                }
+            </div>
+            <div class="modal-footer custom-modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Hide">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    .custom-modal-content {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .custom-modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        padding: 15px;
+    }
+
+    .custom-modal-footer {
+        border-top: 1px solid #e9ecef;
+        border-bottom-left-radius: 15px;
+        border-bottom-right-radius: 15px;
+        padding: 10px;
+    }
+
+    .custom-close-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        color: #000;
+        opacity: 0.5;
+        cursor: pointer;
+    }
+
+        .custom-close-button:hover {
+            color: #000;
+            opacity: 0.75;
+        }
+
+    .custom-modal-body {
+        padding: 20px;
+    }
+</style>
+
+

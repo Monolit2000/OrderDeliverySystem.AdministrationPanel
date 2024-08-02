@@ -1,0 +1,579 @@
+﻿ @page "/menu"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@using OrderDeliverySystem.AdministrationPanel.Components
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+@inject ICatalogService catalogService
+@inject NavigationManager Navigation
+
+<h3>Menu</h3>
+
+<a href="/add-MenuItem" class="btn btn-primary">Add Item</a>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (catalogItemsByWeek.Any())
+{
+    @foreach (var week in catalogItemsByWeek)
+    {
+        <div class="week-container">
+            <div class="week-header">
+                <h3>@week.WeekStart.ToString("dd.MM.yyyy") - @week.WeekEnd.ToString("dd.MM.yyyy")</h3>
+                <button class="btn btn-secondary" @onclick="() => ToggleWeekVisibility(week)">
+                    @(visibleWeeks.Contains(week) ? "Hide Week" : "Show Week")
+                </button>
+            </div>
+            <hr />
+
+            @if (visibleWeeks.Contains(week))
+            {
+                <div class="day-container">
+                    @foreach (var day in Enum.GetNames(typeof(DayOfWeek)))
+                    {
+                        <div class="day">
+                            <h4>@day</h4>
+                            @if (week.CatalogItems.Any(p => p.TimeToItemExist.DayOfWeek.ToString() == day))
+                            {
+                                @foreach (var product in week.CatalogItems.Where(p => p.TimeToItemExist.DayOfWeek.ToString() == day))
+                                {
+                                    <div class="card">
+                                        <div class="card-img-container">
+                                            <img src="@product.PictureUri" class="card-img-top" alt="@product.Name">
+                                        </div>
+                                        <div class="card-body">
+                                            <strong>@product.TimeToItemExist.ToString("dd.MM.yyyy")</strong>
+                                            <h5 class="card-title">@product.Name</h5>
+                                            <p class="card-text">@product.Description</p>
+                                            <p class="card-text"><strong>Price: </strong> @product.Price.ToString("C")</p>
+                                            <div class="card-actions">
+                                                <a href="/edit-product/@product.CatalogItemId" class="btn btn-primary card-button">Edit</a>
+                                                <button @onclick="() => DeleteItem(product.CatalogItemId)" class="btn btn-danger card-button">Delete</button>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer">
+                                            <button class="arrow-button arrow-left" @onclick="() => OnLeftArrowClick(product)">
+                                                <i class="fas fa-arrow-left"></i>
+                                            </button>
+                                            <button class="arrow-button arrow-right" @onclick="() => OnRightArrowClick(product)">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="no-products">
+                                    <p>No products available for @day</p>
+                                    <strong>@GetDateForDay(week, day)</strong>
+                                    @* <a href="/add-MenuItem?dateStr=@GetDateForDay(week, day)" class="btn btn-primary">Add Item</a> *@
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+else
+{
+    <p>No catalog items available.</p>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<CatalogItemsByWeekDto> catalogItemsByWeek = new List<CatalogItemsByWeekDto>();
+    private HashSet<CatalogItemsByWeekDto> visibleWeeks = new HashSet<CatalogItemsByWeekDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        isLoading = true;
+
+        catalogItemsByWeek = await catalogService.GetAllCatalogItemsByWeek();
+
+        // Initially make all weeks visible
+        foreach (var week in catalogItemsByWeek)
+        {
+            visibleWeeks.Add(week);
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private string GetDateForDay(CatalogItemsByWeekDto week, string day)
+    {
+        var startOfWeek = week.WeekStart;
+        var date = startOfWeek.AddDays((int)Enum.Parse<DayOfWeek>(day) - (int)startOfWeek.DayOfWeek);
+
+        return date.ToString("dd.MM.yyyy");
+    }
+
+    private async Task DeleteItem(Guid id)
+    {
+        // Call the service to remove the item
+        await catalogService.RemoveItemAsync(id);
+        await LoadProducts(); // Reload products after deletion
+    }
+
+    private async Task OnLeftArrowClick(CatalogItemDto item)
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = item.CatalogItemId,
+                TimeToItemExist = item.TimeToItemExist.AddDays(-1)
+            };
+        await catalogService.UpdateItemAsync(editItemRequest);
+        await LoadProducts();
+    }
+
+    private async Task OnRightArrowClick(CatalogItemDto item)
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = item.CatalogItemId,
+                TimeToItemExist = item.TimeToItemExist.AddDays(1)
+            };
+        await catalogService.UpdateItemAsync(editItemRequest);
+        await LoadProducts();
+    }
+
+    private void ToggleWeekVisibility(CatalogItemsByWeekDto week)
+    {
+        if (visibleWeeks.Contains(week))
+        {
+            visibleWeeks.Remove(week);
+        }
+        else
+        {
+            visibleWeeks.Add(week);
+        }
+    }
+}
+
+<style>
+    .card {
+        display: flex;
+        flex-direction: column;
+        width: 20rem; /* Фиксированная ширина карточки */
+        height: 30rem; /* Фиксированная высота карточки */
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin: 10px; /* Отступы для карточек */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+    .card-img-container {
+        height: 33%; /* Высота контейнера для изображения */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+        .card-img-container img {
+            width: 100%; /* Ширина изображения занимает всю ширину контейнера */
+            height: 100%; /* Высота изображения занимает всю высоту контейнера */
+            object-fit: cover; /* Обрезать изображение, чтобы оно заполнило контейнер */
+        }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        padding: 15px; /* Отступы для содержимого */
+    }
+
+    .card-title {
+        margin-bottom: 10px; /* Отступ снизу для заголовка */
+    }
+
+    .card-text {
+        font-size: 1rem; /* Размер шрифта для текста */
+        color: #333; /* Цвет текста */
+        flex-grow: 1; /* Позволяет тексту занимать оставшееся пространство */
+    }
+
+    .card-actions {
+        display: flex;
+        justify-content: center; /* Расположить кнопки по краям */
+        margin-top: auto; /* Поместить кнопки внизу карточки */
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        background-color: #f8f9fa;
+    }
+
+    .arrow-button {
+        position: relative;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: #007bff;
+        transition: color 0.3s, transform 0.3s;
+    }
+
+        .arrow-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background-color: rgba(0, 0, 0, 0.1); /* Серый цвет с прозрачностью */
+            border-radius: 50%;
+            transition: width 0.3s, height 0.3s, top 0.3s, left 0.3s;
+            transform: translate(-50%, -50%);
+        }
+
+        .arrow-button:hover::before {
+            width: 2rem; /* Размер кружка */
+            height: 2rem; /* Размер кружка */
+        }
+
+        .arrow-button:active::before {
+            background-color: rgba(0, 0, 0, 0.2); /* Более темный цвет при нажатии */
+        }
+
+        .arrow-button:hover {
+            color: #0056b3;
+        }
+
+        .arrow-button:active {
+            transform: scale(0.9);
+        }
+
+    .card-button {
+        width: 100px; /* Установите желаемую ширину */
+        height: 40px; /* Установите желаемую высоту */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0;
+    }
+
+    .day-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .day {
+        flex: 1 1 150px;
+        margin: 10px;
+    }
+
+    .btn-primary {
+        margin-bottom: 20px;
+    }
+
+    .week-container {
+        margin-bottom: 20px;
+    }
+
+    .week-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .card-container {
+        margin-bottom: 5px;
+    }
+
+    .no-products {
+        font-style: italic;
+        color: grey;
+    }
+</style>
+
+ 
+
+
+
+@* @page "/menu"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@using OrderDeliverySystem.AdministrationPanel.Components
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+@inject ICatalogService catalogService
+@inject NavigationManager Navigation
+
+<h3>Menu</h3>
+
+<a href="/add-MenuItem" class="btn btn-primary">Add Item</a>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (catalogItemsByWeek.Any())
+{
+    @foreach (var week in catalogItemsByWeek)
+    {
+        <div class="week-container">
+            <h3>@week.WeekStart.ToString("dd.MM.yyyy") - @week.WeekEnd.ToString("dd.MM.yyyy")</h3>
+            <hr />
+
+            <div class="day-container">
+                @foreach (var day in Enum.GetNames(typeof(DayOfWeek)))
+                {
+                    <div class="day">
+                        <h4>@day</h4>
+                        @if (week.CatalogItems.Any(p => p.TimeToItemExist.DayOfWeek.ToString() == day))
+                        {
+                            @foreach (var product in week.CatalogItems.Where(p => p.TimeToItemExist.DayOfWeek.ToString() == day))
+                            {
+                                <div class="card">
+                                    <div class="card-img-container">
+                                        <img src="@product.PictureUri" class="card-img-top" alt="@product.Name">
+                                    </div>
+                                    <div class="card-body">
+                                        <strong>@product.TimeToItemExist.ToString("dd.MM.yyyy")</strong>
+                                        <h5 class="card-title">@product.Name</h5>
+                                        <p class="card-text">@product.Description</p>
+                                        <p class="card-text"><strong>Price: </strong> @product.Price.ToString("C")</p>
+                                        <div class="card-actions">
+                                            <a href="/edit-product/@product.CatalogItemId" class="btn btn-primary card-button">Edit</a>
+                                            <button @onclick="() => DeleteItem(product.CatalogItemId)" class="btn btn-danger card-button">Delete</button>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <button class="arrow-button arrow-left" @onclick="() => OnLeftArrowClick(product)">
+                                            <i class="fas fa-arrow-left"></i>
+                                        </button>
+                                        <button class="arrow-button arrow-right" @onclick="() => OnRightArrowClick(product)">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="no-products">
+                                <p>No products available for @day</p>
+                                <strong>@GetDateForDay(week, day)</strong>
+                                <a href="/add-MenuItem?date=@GetDateForDay(week, day)" class="btn btn-primary">Add Item</a>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+else
+{
+    <p>No catalog items available.</p>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<CatalogItemsByWeekDto> catalogItemsByWeek = new List<CatalogItemsByWeekDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        isLoading = true;
+
+        catalogItemsByWeek = await catalogService.GetAllCatalogItemsByWeek();
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private string GetDateForDay(CatalogItemsByWeekDto week, string day)
+    {
+        var startOfWeek = week.WeekStart;
+        var date = startOfWeek.AddDays((int)Enum.Parse<DayOfWeek>(day) - (int)startOfWeek.DayOfWeek);
+
+        return date.ToString("dd.MM.yyyy");
+    }
+
+    private async Task DeleteItem(Guid id)
+    {
+        // Call the service to remove the item
+        await catalogService.RemoveItemAsync(id);
+        await LoadProducts(); // Reload products after deletion
+    }
+
+    private async Task OnLeftArrowClick(CatalogItemDto item)
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = item.CatalogItemId,
+                TimeToItemExist = item.TimeToItemExist.AddDays(-1)
+            };
+        await catalogService.UpdateItemAsync(editItemRequest);
+        await LoadProducts();
+    }
+
+    private async Task OnRightArrowClick(CatalogItemDto item)
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = item.CatalogItemId,
+                TimeToItemExist = item.TimeToItemExist.AddDays(1)
+            };
+        await catalogService.UpdateItemAsync(editItemRequest);
+        await LoadProducts();
+    }
+}
+
+<style>
+    .card {
+        display: flex;
+        flex-direction: column;
+        width: 20rem; /* Фиксированная ширина карточки */
+        height: 30rem; /* Фиксированная высота карточки */
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin: 10px; /* Отступы для карточек */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+    .card-img-container {
+        height: 33%; /* Высота контейнера для изображения */
+        overflow: hidden; /* Скрытие переполнения */
+    }
+
+        .card-img-container img {
+            width: 100%; /* Ширина изображения занимает всю ширину контейнера */
+            height: 100%; /* Высота изображения занимает всю высоту контейнера */
+            object-fit: cover; /* Обрезать изображение, чтобы оно заполнило контейнер */
+        }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        padding: 15px; /* Отступы для содержимого */
+    }
+
+    .card-title {
+        margin-bottom: 10px; /* Отступ снизу для заголовка */
+    }
+
+    .card-text {
+        font-size: 1rem; /* Размер шрифта для текста */
+        color: #333; /* Цвет текста */
+        flex-grow: 1; /* Позволяет тексту занимать оставшееся пространство */
+    }
+
+    .card-actions {
+        display: flex;
+        justify-content: center; /* Расположить кнопки по краям */
+        margin-top: auto; /* Поместить кнопки внизу карточки */
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        background-color: #f8f9fa;
+    }
+
+    .arrow-button {
+        position: relative;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: #007bff;
+        transition: color 0.3s, transform 0.3s;
+    }
+
+        .arrow-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background-color: rgba(0, 0, 0, 0.1); /* Серый цвет с прозрачностью */
+            border-radius: 50%;
+            transition: width 0.3s, height 0.3s, top 0.3s, left 0.3s;
+            transform: translate(-50%, -50%);
+        }
+
+        .arrow-button:hover::before {
+            width: 2rem; /* Размер кружка */
+            height: 2rem; /* Размер кружка */
+        }
+
+        .arrow-button:active::before {
+            background-color: rgba(0, 0, 0, 0.2); /* Более темный цвет при нажатии */
+        }
+
+        .arrow-button:hover {
+            color: #0056b3;
+        }
+
+        .arrow-button:active {
+            transform: scale(0.9);
+        }
+
+    .card-button {
+        width: 100px; /* Установите желаемую ширину */
+        height: 40px; /* Установите желаемую высоту */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0;
+    }
+
+    .day-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .day {
+        flex: 1 1 150px;
+        margin: 10px;
+    }
+
+    .btn-primary {
+        margin-bottom: 20px;
+    }
+
+    .week-container {
+        margin-bottom: 20px;
+    }
+
+    .card-container {
+        margin-bottom: 5px;
+    }
+
+    .no-products {
+        font-style: italic;
+        color: grey;
+    }
+</style>
+
+
+ *@

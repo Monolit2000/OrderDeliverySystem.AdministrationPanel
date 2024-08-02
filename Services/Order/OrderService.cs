@@ -1,12 +1,7 @@
-﻿using OrderDeliverySystem.AdministrationPanel.Components;
-using OrderDeliverySystem.AdministrationPanel.Components.Pages.Orders;
-using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models;
-using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
+﻿using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
 using OrderDeliverySystem.AdministrationPanel.Services.Order.Models;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace OrderDeliverySystem.AdministrationPanel.Services.Order
 {
@@ -18,14 +13,31 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Order
         public OrderService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            _configuration = configuration;
+            _configuration = configuration; 
         }
 
-        public async Task<IEnumerable<OrderDto>> GetOllOrders()
+        public async Task<IEnumerable<OrderDto>> GetAllOrders()
         {
             try
             {
-                var items = await _httpClient.GetFromJsonAsync<IEnumerable<OrderDto>>(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Order/GetOllOrders");
+                var items = await _httpClient.GetFromJsonAsync<IEnumerable<OrderDto>>(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Order/GetAllOrders");
+
+                return items;
+            }
+            catch (Exception ex)
+            {
+                await Console.Out.WriteLineAsync(ex.Message);
+                throw; 
+            }
+        }
+
+
+
+        public async Task<IEnumerable<OrderDto>> GetAllOrdersByDay()
+        {
+            try
+            {
+                var items = await _httpClient.GetFromJsonAsync<IEnumerable<OrderDto>>(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Order/GetAllOrders");
 
                 return items;
             }
@@ -35,6 +47,9 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Order
                 throw;
             }
         }
+
+
+
 
         public async Task<Result<SetOrderStatusResult,string>> SetPaidOrderStatus(Guid orderId)
         {
@@ -122,8 +137,48 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Order
 
 
 
-        
 
+        public async Task<Result<List<OrderItemDtoByDay>, string>> GetAllOrderItemsByDayRange(DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var data = new { StartDate = startDate, EndDate = endDate };
+                var response = await _httpClient.PostAsJsonAsync(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Order/GetAllOrderItemsByDayRange", data);
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return Result<List<OrderItemDtoByDay>, string>.Err("Order not found.");
+                }
+                else if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    var errors = JsonSerializer.Deserialize<List<string>>(errorContent);
+                    var errorMessage = string.Join("; ", errors);
+
+                    return Result<List<OrderItemDtoByDay>, string>.Err($"{errorMessage}");
+                }
+                else if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+
+                    return Result<List<OrderItemDtoByDay>, string>.Err($"Server returned error: {response.StatusCode}. Details: {errorContent}");
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<List<OrderItemDtoByDay>>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return Result<List<OrderItemDtoByDay>, string>.Ok(result);
+            }
+
+            catch (Exception ex)
+            {
+                await Console.Out.WriteLineAsync(ex.Message);
+                throw;
+            }
+        }
 
 
     }

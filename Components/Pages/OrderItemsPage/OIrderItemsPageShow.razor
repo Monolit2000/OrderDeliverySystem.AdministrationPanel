@@ -1,4 +1,4 @@
-﻿@page "/Order"
+﻿@page "/OrderItemsPageshow"
 @attribute [StreamRendering]
 @rendermode InteractiveServer
 @using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
@@ -6,6 +6,7 @@
 
 @inject IOrderService orderService;
 @using OrderDeliverySystem.AdministrationPanel.Components.OrederCard;
+@using OrderDeliverySystem.AdministrationPanel.Components.Pages.Orders;
 
 
 @if (Orders == null)
@@ -14,16 +15,16 @@
 }
 else
 {
-    @* <DisplayOrderItemsByDayRange></DisplayOrderItemsByDayRange> *@
+    <DisplayOrderItemsByDayRange></DisplayOrderItemsByDayRange>
 
-    <DisplayOrders Orders="@Orders"></DisplayOrders>
+    @* <DisplayOrders Orders="@Orders"></DisplayOrders> *@
 }
 
 
 
 
 @code {
-    
+
     public IEnumerable<OrderDto> Orders { get; set; }
 
     protected override async Task OnInitializedAsync()

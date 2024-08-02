@@ -1,9 +1,8 @@
-
 using OrderDeliverySystem.AdministrationPanel.Components;
 using OrderDeliverySystem.AdministrationPanel.Services.Catalog;
 using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
 using OrderDeliverySystem.AdministrationPanel.Services.Order;
-
+using MatBlazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-
+builder.Services.AddMatBlazor();
 
 builder.Services.AddScoped(sp => new HttpClient() /*{ BaseAddress = new Uri(builder.Configuration["OrderDeliverySystemServiceUrl"]) }*/);
 

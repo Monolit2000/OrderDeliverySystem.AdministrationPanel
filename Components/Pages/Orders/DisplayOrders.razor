@@ -1,17 +1,228 @@
-﻿@inherits DisplayOrdersBase
-@using OrderDeliverySystem.AdministrationPanel.CustomComponent.NotificationComponents
+﻿@using OrderDeliverySystem.AdministrationPanel.CustomComponent.NotificationComponents
 @using OrderDeliverySystem.AdministrationPanel.Services.Order.Models;
 @inject IJSRuntime JS
-@using OrderDeliverySystem.AdministrationPanel.Components.Pages.Orders.Components
 @using OrderDeliverySystem.AdministrationPanel.Services.Contracts;
+@using OrderDeliverySystem.AdministrationPanel.Components.OrederCard;
 @inject IOrderService orderService
+@* @attribute [StreamRendering]
+@rendermode InteractiveServer *@
 
 <div id="notification-container" class="notification-container"></div>
 
+<table class="table">
+    <thead>
+        <tr>
+            <th>OrderId</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var order in Orders)
+        {
+            <tr>
+                <td>@order.OrderId</td>
+                <td>@order.OrderItems.Count</td>
+                <td>
+                    <select class="form-control @(GetStatusClass(order.Status))" @onchange="(e) => OnStatusChange(order.OrderId, e.Value.ToString())">
+                        @foreach (var item in Enum.GetNames<Status>())
+                        {
+                            <option value="@item" selected="@(item == order.Status.ToString())">@item</option>
+                        }
+                    </select>
+                </td>
+                <td>@order.Created</td>
+                <td>@order.Description</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="(e) => ShowOrderDetails(order)">Show Details</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>  
+
+
+<ModalOrderDetails OrderDetails="OrderDetails" IsVisible="IsVisible"></ModalOrderDetails>
+
+
+@code 
+{
+
+    [Parameter]
+    public IEnumerable<OrderDto> Orders { get; set; }
+
+
+    private OrderDto OrderDetails;
+
+    private bool IsVisible;
+
+    private void ShowOrderDetails(OrderDto order)
+    {
+        OrderDetails = order;
+        IsVisible = true;
+    }
+
+
+    // public void Show(OrderDto order)
+    // {
+    //     OrderDetails = order;
+    //     IsVisible = true;
+    // }
+
+    private void Hide()
+    {
+        IsVisible = false;
+    }
+
+
+    private async Task ShowMessageAsync(string message, string type = "success")
+    {
+        await JS.InvokeVoidAsync("showNotification", message, type);
+
+    }
+
+    private async void OnStatusChange(Guid orderId, string newStatus)
+    {
+        var order = Orders.FirstOrDefault(o => o.OrderId == orderId);
+
+        if (order == null)
+        {
+            var errorMesage = $"Order not found for OrderId: {orderId}";
+            await ShowMessageAsync(errorMesage, "error");
+            return;
+        }
+
+        order.Status = Enum.Parse<Status>(newStatus).ToString();
+
+        var result = await orderService.ChangeOrderStatus(order.OrderId, newStatus);
+        if(!result.IsSuccess)
+        {
+            await ShowMessageAsync($"{result.Error}", "error");
+            await LoadOrdersAsync();
+
+            return;
+        }
+
+        await ShowMessageAsync($"Status changed for OrderId: {orderId} to {newStatus}");
+
+        await LoadOrdersAsync();
+        
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        Orders = await orderService.GetAllOrders();
+        StateHasChanged();
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Submitted" => "status-submitted",
+            "Paid" => "status-paid",
+            "Shipped" => "status-shipped",
+            "Delivered" => "status-delivered",
+            "Cancelled" => "status-cancelled",
+            _ => ""
+        };
+    }
+}
+   
 <style>
 
-
     .table {
+        width: 100%;
+        border-collapse: collapse; /* Изменяем на collapse, чтобы убрать границы между ячейками */
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+        border-radius: 8px; /* Закругляем границы таблицы */
+        overflow: hidden; /* Чтобы содержимое таблицы не выходило за границы */
+    }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            border: none; /* Убираем границы ячеек */
+        }
+
+        .table thead th {
+            background-color: #f2f2f2;
+            border-top: none; /* Убираем верхнюю границу */
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Закругляем верхние углы у первого и последнего столбца заголовка */
+        .table thead th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        .table thead th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        /* Закругляем нижние углы у первого и последнего столбца последней строки */
+        .table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 8px;
+        }
+
+    .notification-container {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 9999;
+        max-width: 300px;
+    }
+
+    .notification {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        animation: fadeOut 4s forwards; /* Применяем анимацию исчезновения */
+    }
+
+    .status-submitted {
+        background-color: rgba(255, 165, 0, 0.5); /* Оранжевый с прозрачностью 50% */
+    }
+
+    .status-paid {
+        background-color: rgba(0, 128, 0, 0.5); /* Зеленый с прозрачностью 50% */
+    }
+
+    .status-shipped {
+        background-color: rgba(173, 216, 230, 0.5); /* Светло-голубой с прозрачностью 50% */
+    }
+
+    .status-delivered {
+        background-color: rgba(128, 0, 128, 0.5); /* Фиолетовый с прозрачностью 50% */
+    }
+
+    .status-cancelled {
+        background-color: rgba(255, 0, 0, 0.5); /* Красный с прозрачностью 50% */
+    }
+
+   
+
+</style>
+@* 
+       .table {
         width: 100%;
         border-collapse: separate; /* Изменено на separate для работы с border-radius */
         border-spacing: 0; /* Устанавливаем spacing в 0 для смежных границ */
@@ -96,157 +307,5 @@
 
     .status-cancelled {
         background: red; /* Цвет для статуса "Cancelled" */
-    }
-
-
-
-</style>
-
-
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>OrderId</th>
-            <th>Items</th>
-            <th>Status</th>
-            <th>Description</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var order in Orders)
-        {
-            <tr>
-                <td>@order.OrderId</td>
-                <td>@order.OrderItems.Count</td>
-                <td>
-                    <select class="form-control @(GetStatusClass(order.Status))" @onchange="(e) => OnStatusChange(order.OrderId, e.Value.ToString())">
-                        @foreach (var item in Enum.GetNames<Status>())
-                        {
-                            <option value="@item" selected="@(item == order.Status.ToString())">@item</option>
-                        }
-                    </select>
-                </td>
-                <td>@order.Description</td>
-                <td>
-                    <button class="btn btn-primary" @onclick="(e) => ShowOrderDetails(order)">Show Details</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table> 
-
-@* <OrderDetailsModal @ref="orderDetailsModal"/> 
- *@
-
-
-<div class="modal" style="display: @(IsVisible ? "block" : "none")">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Order Details</h5>
-                <button type="button" class="close" @onclick="Hide">&times;</button>
-            </div>
-            <div class="modal-body">
-                @if (@OrderDetails != null)
-                {
-                    <p>OrderId: @OrderDetails.OrderId</p>
-                    <p>BuyerId: @OrderDetails.BuyerId</p>
-                    <ul>
-                        @foreach (var item in OrderDetails.OrderItems)
-                        {
-                            <li>Items: @item.ProductName</li>
-                        }
-                    </ul>
-                    <p>Status: @OrderDetails.Status</p>
-                    <p>Description: @OrderDetails.Description</p>
-                }
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" @onclick="Hide">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-@code {
-
-    private void ShowOrderDetails(OrderDto order)
-    {
-        Show(order);
-    }
-
-    private OrderDto OrderDetails;
-    private bool IsVisible;
-
-    public void Show(OrderDto order)
-    {
-        OrderDetails = order;
-        IsVisible = true;
-    }
-
-    private void Hide()
-    {
-        IsVisible = false;
-    }
-
-
-
-
-    private async Task ShowMessageAsync(string message, string type = "success")
-    {
-        await JS.InvokeVoidAsync("showNotification", message, type);
-
-    }
-
-    private async void OnStatusChange(Guid orderId, string newStatus)
-    {
-        var order = Orders.FirstOrDefault(o => o.OrderId == orderId);
-
-        if (order == null)
-        {
-            var errorMesage = $"Order not found for OrderId: {orderId}";
-            await ShowMessageAsync(errorMesage, "error");
-            return;
-        }
-
-        order.Status = Enum.Parse<Status>(newStatus).ToString();
-
-        var result = await orderService.ChangeOrderStatus(order.OrderId, newStatus);
-        if(!result.IsSuccess)
-        {
-            await ShowMessageAsync($"{result.Error}", "error");
-            await LoadOrdersAsync();
-
-            return;
-        }
-
-        await ShowMessageAsync($"Status changed for OrderId: {orderId} to {newStatus}");
-
-        await LoadOrdersAsync();
-        
-    }
-
-    private async Task LoadOrdersAsync()
-    {
-        Orders = await orderService.GetOllOrders();
-        StateHasChanged();
-    }
-
-    private string GetStatusClass(string status)
-    {
-        return status switch
-        {
-            "Submitted" => "status-submitted",
-            "Paid" => "status-paid",
-            "Shipped" => "status-shipped",
-            "Delivered" => "status-delivered",
-            "Cancelled" => "status-cancelled",
-            _ => ""
-        };
-    }
-
-
-}
-
+    } */
+*@

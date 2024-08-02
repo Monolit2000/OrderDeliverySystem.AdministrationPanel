@@ -4,10 +4,12 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Contracts
 {
     public interface IOrderService
     {
-        public Task<IEnumerable<OrderDto>> GetOllOrders();
+        public Task<IEnumerable<OrderDto>> GetAllOrders();
 
         public Task<Result<SetOrderStatusResult,string>> SetPaidOrderStatus(Guid orderId);
 
         public Task<Result<ChangeOrderStatusResult, string>> ChangeOrderStatus(Guid orderId, string status);
+
+        public Task<Result<List<OrderItemDtoByDay>, string>> GetAllOrderItemsByDayRange(DateTime startDate, DateTime endDate);
     }
 }

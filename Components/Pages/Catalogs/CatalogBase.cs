@@ -13,7 +13,7 @@ namespace OrderDeliverySystem.AdministrationPanel.Components.Pages
 
         protected override async Task OnInitializedAsync()
         {
-            Items = await CatalogService.GetOllItemsByDays();
+            Items = await CatalogService.GetAllItemsByDays();
         }
     }
 }

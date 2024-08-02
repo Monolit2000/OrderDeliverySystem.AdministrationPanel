@@ -1,0 +1,142 @@
+﻿@page "/add-MenuItem"
+@page "/add-MenuItem/{dateStr:datetime}"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using Microsoft.AspNetCore.Components
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@attribute [StreamRendering] 
+@rendermode InteractiveServer
+
+@code {
+    [Parameter]
+    public DateTime? date { get; set; }
+
+    [Parameter]
+    public string dateStr { get; set; }
+
+    private AddCatalogItemRequest NewMenuItem { get; set; } = new AddCatalogItemRequest();
+    private bool isLoading = false;
+
+
+    protected override void OnParametersSet()
+    {
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    private async Task SaveItem()
+    {
+        isLoading = true;
+        await CatalogService.AddCatalogItem(NewMenuItem);
+        isLoading = false;
+        Navigation.NavigateTo("/menu");
+    }
+}
+
+@if (isLoading)
+{
+    <p>Saving...</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(NewMenuItem.PictureUrl))
+    {
+        <div class="form-group">
+            <label for="imagePreview">Image Preview</label>
+            <img id="imagePreview" src="@NewMenuItem.PictureUrl" alt="Image Preview" class="img-thumbnail" />
+        </div>
+    }
+
+    <div class="container">
+        <h3>Add New Menu Item</h3>
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" class="form-control" @bind="NewMenuItem.Name" />
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" class="form-control" @bind="NewMenuItem.Description"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" id="price" class="form-control" @bind="NewMenuItem.Price" />
+        </div>
+        <div class="form-group">
+            <label for="pictureUrl">Image URL</label>
+            <input type="text" id="pictureUrl" class="form-control" @bind="NewMenuItem.PictureUrl" />
+        </div> 
+       
+        <div class="form-group">
+            <label for="timeToExist">TimeToExist</label>
+            <input type="date" id="timeToExist" class="form-control" @bind="NewMenuItem.TimeToExist" />
+        </div>
+     
+        <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+    </div>
+}
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .img-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+</style>
+

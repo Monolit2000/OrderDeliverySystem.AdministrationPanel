@@ -1,0 +1,234 @@
+﻿@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+
+
+@page "/menu-item"
+
+
+<div class="card">
+    <div class="card-img-container">
+        <img src="@MenuItem.PictureUri" class="-icardmg-top" alt="@MenuItem.Name">
+    </div>
+    <div class="card-body">
+        <strong>@MenuItem.Deadline.ToString("dd.MM.yyyy")</strong>
+        <h5 class="card-title">@MenuItem.Name</h5>
+        <p class="card-text">@MenuItem.Description</p>
+        <p class="card-text"><strong>Price: </strong> @MenuItem.Price.ToString("C")</p>
+        <div class="card-actions">
+            <a href="/edit-product/@MenuItem.Id.ToString()" class="btn btn-primary card-button">Edit</a>
+            <button @onclick="DeleteItem" class="btn btn-danger card-button">Delete</button>
+        </div>
+    </div>
+    <div class="card-footer">
+        <button class="arrow-button arrow-left" @onclick="OnLeftArrowClick">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="arrow-button arrow-right" @onclick="OnRightArrowClick">
+            <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public CatalogItem MenuItem { get; set; }
+
+    [Parameter]
+    public EventCallback OnItemDeleted { get; set; }
+
+    private async Task DeleteItem()
+    {
+        await CatalogService.RemoveItemAsync(MenuItem.Id);
+        await OnItemDeleted.InvokeAsync();
+    }
+
+    private async Task OnLeftArrowClick()
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+        {
+            CatalogItemId = MenuItem.Id,
+            TimeToItemExist = MenuItem.Deadline.AddDays(-1)
+        };
+        await CatalogService.UpdateItemAsync(editItemRequest);
+        await OnItemDeleted.InvokeAsync();
+    }
+
+    private async Task OnRightArrowClick()
+    {
+        var editItemRequest = new EditCatalogItemRequest()
+            {
+                CatalogItemId = MenuItem.Id,
+                TimeToItemExist = MenuItem.Deadline.AddDays(1)
+            };
+        await CatalogService.UpdateItemAsync(editItemRequest);
+        await OnItemDeleted.InvokeAsync();
+    }
+}
+
+<style>
+    .card {
+          display: flex;
+          flex-direction: column;
+          width: 20rem; /* Фиксированная ширина карточки */
+          height: 30rem; /* Фиксированная высота карточки */
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+          margin: 10px; /* Отступы для карточек */
+          overflow: hidden; /* Скрытие переполнения */
+    }
+
+    .card-img-container {
+          height: 33%; /* Высота контейнера для изображения */
+          overflow: hidden; /* Скрытие переполнения */
+    }
+
+    .card-img-container img {
+            width: 100%; /* Ширина изображения занимает всю ширину контейнера */
+            height: 100%; /* Высота изображения занимает всю высоту контейнера */
+            object-fit: cover; /* Обрезать изображение, чтобы оно заполнило контейнер */
+    }
+
+    .card-body {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          padding: 15px; /* Отступы для содержимого */
+    }
+
+    .card-title {
+          margin-bottom: 10px; /* Отступ снизу для заголовка */
+    }
+
+    .card-text {
+          font-size: 1rem; /* Размер шрифта для текста */
+          color: #333; /* Цвет текста */
+          flex-grow: 1; /* Позволяет тексту занимать оставшееся пространство */
+    }
+
+    .card-actions {
+          display: flex;
+          justify-content: center; /* Расположить кнопки по краям */
+          margin-top: auto; /* Поместить кнопки внизу карточки */
+    }
+
+    .card-footer {
+          display: flex;
+          justify-content: space-between;
+          padding: 10px;
+          border-top: 1px solid #ddd;
+          background-color: #f8f9fa;
+    }
+
+    .arrow-button {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 1.5rem; /* Размер стрелочек */
+          color: #007bff; /* Цвет стрелочек */
+    }
+
+    .card-button {
+        width: 100px; /* Установите желаемую ширину */
+        height: 40px; /* Установите желаемую высоту */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0;
+    }
+
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@* @using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+
+
+@code {
+    [Parameter]
+    public CatalogItem MenuItem { get; set; }
+
+    private async Task DeleteItem()
+    {
+        // Добавьте логику удаления элемента здесь.
+        // Например, вызовите метод сервиса, который удаляет элемент из базы данных.
+        // await CatalogService.DeleteItemAsync(MenuItem.Id);
+
+        // Переадресация или обновление интерфейса после удаления.
+    }
+}
+
+<div class="card">
+    <img src="@MenuItem.ImageUrl" class="card-img-top" alt="@MenuItem.Name">
+    <div class="card-body">
+        <strong>@MenuItem.Deadline.Date</strong>
+        <h5 class="card-title">@MenuItem.Name</h5>
+        <p class="card-text">@MenuItem.Description</p>
+        <p class="card-text"><strong>Price: </strong> @MenuItem.Price.ToString("C")</p>
+        <a href="/edit-product/@MenuItem.Id" class="btn btn-primary">Edit</a>
+        <button @onclick="DeleteItem" class="btn btn-danger">Delete</button>
+    </div>
+</div>
+
+<style>
+    .card {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        grid-template-columns: 1fr;
+        width: 20rem; /* Adjust width as needed */
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin: 10px; /* Adjust margin for spacing */
+    }
+
+    .card-img-top {
+        height: 150px; /* Adjust image height as needed */
+        object-fit: cover; /* Maintain aspect ratio and crop if necessary */
+    }
+
+    .card-body {
+        padding: 15px; /* Adjust padding for content spacing */
+    }
+
+    .card-title {
+        margin-bottom: 10px; /* Add some space below the title */
+    }
+
+    .card-text {
+        font-size: 0.8rem; /* Adjust font size for readability */
+        color: #333; /* Set a darker text color for better contrast */
+    }
+
+        .card-text strong {
+            color: #000; /* Make price stand out with a bolder color */
+        }
+
+    .btn-primary {
+        background-color: #007bff; /* Adjust button color if desired */
+        border-color: #007bff;
+        margin-top: 10px; /* Add spacing above the button */
+    }
+
+    .btn-danger {
+        background-color: #dc3545; /* Red background for delete button */
+        border-color: #dc3545;
+        margin-top: 10px; /* Add spacing above the button */
+    }
+</style>
+ *@

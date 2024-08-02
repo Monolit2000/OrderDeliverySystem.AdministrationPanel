@@ -1,0 +1,221 @@
+﻿@page "/orderitemsbydayrange"
+@using OrderDeliverySystem.AdministrationPanel.Services.Order.Models
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject IOrderService orderService
+@inject IJSRuntime JS
+
+
+<div id="notification-container" class="notification-container"></div>
+
+<style>
+    .notification-container {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 9999;
+        max-width: 300px;
+    }
+
+    .notification {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        animation: fadeOut 4s forwards; /* Применяем анимацию исчезновения */
+    }
+</style>
+
+<div>
+    <label>Start Date:</label>
+    <input type="date" @bind="startDate" />
+    <label>End Date:</label>
+    <input type="date" @bind="endDate" />
+    <button class="btn btn-primary" @onclick="LoadOrderItems">Load Order Items</button>
+    <button class="btn btn-secondary" @onclick="ToggleTableVisibility">
+        @(isTableVisible ? "Hide Table" : "Show Table")
+    </button>
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="ToggleTableVisibility">
+        @(isTableVisible ? "Hide Table" : "Show Table")
+    </button>
+</div>
+
+@if (isTableVisible)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>OrderId</th>
+                <th>PhoneNumber</th>
+                <th>OrderItemId</th>
+                <th>ProductName</th>
+                <th>UnitPrice</th>
+                <th>Units</th>
+                <th>
+                    <button class="btn" @onclick="ToggleSortOrder">Deadline</button>
+                    @if (isSortedAscending)
+                    {
+                        <strong>/\</strong>
+                    }
+                    else
+                    {
+                        <strong>\/</strong>
+                    }
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in PaginatedOrderItems)
+            {
+                <tr>
+                    <td>@item.OrderId</td>
+                    <td>@item.PhoneNumber</td>
+                    <td>@item.OrderItemId</td>
+                    <td>@item.ProductName</td>
+                    <td>@item.UnitPrice</td>
+                    <td>@item.Units</td>
+                    <td>@item.Deadline</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        <button class="btn btn-secondary" @onclick="GoToPreviousPage" disabled="@(currentPage == 1)">Previous</button>
+        <span>Page @currentPage of @totalPages</span>
+        <button class="btn btn-secondary" @onclick="GoToNextPage" disabled="@(currentPage == totalPages)">Next</button>
+    </div>
+}
+
+@code {
+    private DateTime startDate = DateTime.Now.Date;
+    private DateTime endDate = DateTime.Now.Date;
+    private List<OrderItemDtoByDay> OrderItems = new List<OrderItemDtoByDay>();
+    private bool isSortedAscending = true;
+    private bool isTableVisible = true;
+    private string searchTerm = string.Empty;
+
+    private int currentPage = 1;
+    private int itemsPerPage = 10;
+    private int totalPages => (OrderItems.Count + itemsPerPage - 1) / itemsPerPage;
+
+    private List<OrderItemDtoByDay> PaginatedOrderItems => OrderItems
+        .Skip((currentPage - 1) * itemsPerPage)
+        .Take(itemsPerPage)
+        .ToList();
+
+    private async Task LoadOrderItems()
+    {
+        var result = await orderService.GetAllOrderItemsByDayRange(startDate, endDate);
+        if (result.IsSuccess)
+        {
+            OrderItems = result.Value;
+            SortOrderItems();
+            currentPage = 1; // Reset to first page when new data is loaded
+        }
+        else
+        {
+            OrderItems.Clear();
+            await JS.InvokeVoidAsync("showNotification", result.Error, "error");
+        }
+    }
+
+    private void SortOrderItems()
+    {
+        if (isSortedAscending)
+        {
+            OrderItems = OrderItems.OrderBy(item => item.Deadline).ToList();
+        }
+        else
+        {
+            OrderItems = OrderItems.OrderByDescending(item => item.Deadline).ToList();
+        }
+    }
+
+    private void ToggleSortOrder()
+    {
+        isSortedAscending = !isSortedAscending;
+        SortOrderItems();
+    }
+
+    private void ToggleTableVisibility()
+    {
+        isTableVisible = !isTableVisible;
+    }
+
+    private void GoToPreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void GoToNextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+        }
+    }
+}
+
+<style>
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            border: none;
+        }
+
+        .table thead th {
+            background-color: #f2f2f2;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .table thead th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        .table thead th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 8px;
+        }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0;
+    }
+
+        .pagination button {
+            margin: 0 5px;
+        }
+</style>

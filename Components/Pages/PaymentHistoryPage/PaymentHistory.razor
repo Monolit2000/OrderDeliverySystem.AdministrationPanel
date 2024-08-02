@@ -1,0 +1,184 @@
+﻿@page "/paymenthistory"
+@using OrderDeliverySystem.Payments.Application.Payments.GetPaymentHistory
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject IPaymentService paymentService
+@inject IJSRuntime JS
+
+<div>
+    <label>Start Date:</label>
+    <input type="date" @bind="startDate" />
+    <label>End Date:</label>
+    <input type="date" @bind="endDate" />
+    <button class="btn btn-primary" @onclick="LoadPaymentHistory">Load Payment History</button>
+    <button class="btn btn-secondary" @onclick="ToggleTableVisibility">
+        @(isTableVisible ? "Hide Table" : "Show Table")
+    </button>
+</div>
+
+@if (isTableVisible)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Payment ID</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>
+                    <button class="btn" @onclick="ToggleSortOrder">Status</button>
+                    @if (isSortedAscending)
+                    {
+                        <strong>/\</strong>
+                    }
+                    else
+                    {
+                        <strong>\/</strong>
+                    }
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var payment in PaginatedPayments)
+            {
+                <tr>
+                    <td>@payment.PaymentId</td>
+                    <td>@payment.Amount.ToString("C")</td>
+                    <td>@payment.Date.ToString("dd.MM.yyyy")</td>
+                    <td>@payment.Status</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        <button class="btn btn-secondary" @onclick="GoToPreviousPage" disabled="@(currentPage == 1)">Previous</button>
+        <span>Page @currentPage of @totalPages</span>
+        <button class="btn btn-secondary" @onclick="GoToNextPage" disabled="@(currentPage == totalPages)">Next</button>
+    </div>
+}
+
+@code {
+    private DateTime startDate = DateTime.Now.Date;
+    private DateTime endDate = DateTime.Now.Date;
+    private List<PaymentHistoryDto> payments = new List<PaymentHistoryDto>();
+    private bool isSortedAscending = true;
+    private bool isTableVisible = true;
+    private int currentPage = 1;
+    private int itemsPerPage = 10;
+    private int totalPages => (payments.Count + itemsPerPage - 1) / itemsPerPage;
+
+    private List<PaymentHistoryDto> PaginatedPayments => payments
+        .Skip((currentPage - 1) * itemsPerPage)
+        .Take(itemsPerPage)
+        .ToList();
+
+    private async Task LoadPaymentHistory()
+    {
+        var result = await paymentService.GetPaymentHistory(startDate, endDate);
+        if (result.IsSuccess)
+        {
+            payments = result.Value;
+            SortPayments();
+            currentPage = 1; // Reset to first page when new data is loaded
+        }
+        else
+        {
+            payments.Clear();
+            await JS.InvokeVoidAsync("showNotification", result.Error, "error");
+        }
+    }
+
+    private void SortPayments()
+    {
+        if (isSortedAscending)
+        {
+            payments = payments.OrderBy(p => p.Status).ToList();
+        }
+        else
+        {
+            payments = payments.OrderByDescending(p => p.Status).ToList();
+        }
+    }
+
+    private void ToggleSortOrder()
+    {
+        isSortedAscending = !isSortedAscending;
+        SortPayments();
+    }
+
+    private void ToggleTableVisibility()
+    {
+        isTableVisible = !isTableVisible;
+    }
+
+    private void GoToPreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void GoToNextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+        }
+    }
+}
+
+<style>
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            border: none;
+        }
+
+        .table thead th {
+            background-color: #f2f2f2;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .table thead th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        .table thead th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 8px;
+        }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0;
+    }
+
+        .pagination button {
+            margin: 0 5px;
+        }
+</style>

@@ -9,3 +9,14 @@ function showNotification(message, type) {
     container.appendChild(notification);
     setTimeout(function () {container.removeChild(notification);}, 4000);
 }
+
+
+
+function toggleWeek(weekId) {
+    const weekContent = document.getElementById(weekId);
+    if (weekContent.style.display === "none") {
+        weekContent.style.display = "block";
+    } else {
+        weekContent.style.display = "none";
+    }
+}

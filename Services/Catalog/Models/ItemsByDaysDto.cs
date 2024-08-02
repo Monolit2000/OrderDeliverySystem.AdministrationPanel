@@ -4,6 +4,6 @@
     {
         public DateTime Day { get; set; }
 
-        public List<CatalogItemDto> Items { get; set; } = [];
+        public List<CatalogItem> Items { get; set; } = [];
     }
 }
