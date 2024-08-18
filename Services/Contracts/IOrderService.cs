@@ -10,6 +10,10 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Contracts
 
         public Task<Result<ChangeOrderStatusResult, string>> ChangeOrderStatus(Guid orderId, string status);
 
+        //public Task<Result<ChangeOrderItemStatusResult, string>> ChangeOrderItemStatus(Guid orderId, string status);
+
+        public Task<Result<ChangeOrderItemStatusResult, string>> ChangeOrderItemStatus(Guid orderId, Guid orderItemId, string newStatus);
+
         public Task<Result<List<OrderItemDtoByDay>, string>> GetAllOrderItemsByDayRange(DateTime startDate, DateTime endDate);
     }
 }

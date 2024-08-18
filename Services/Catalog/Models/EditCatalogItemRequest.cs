@@ -8,5 +8,9 @@
         public string Description { get; set; }
         public decimal Price { get; set; }
         public string PictureUri { get; set; }
+
+        public string? OptionalItemName { get; set; }
+        public string? OptionalItemDescription { get; set; }
+        public decimal OptionalItemPrice { get; set; } = default;
     }
 }

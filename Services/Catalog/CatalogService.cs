@@ -7,6 +7,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
+
 using static MudBlazor.CategoryTypes;
 
 namespace OrderDeliverySystem.AdministrationPanel.Services.Catalog
@@ -255,6 +257,38 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Catalog
                 await Console.Out.WriteLineAsync(ex.Message);
                 throw;
             }
+        }
+
+        public async Task<string> UploadPhotoAsync(Stream stream, string contentType, string name, string fileName )
+        {
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            content.Add(fileContent, name, fileName); // Используйте реальное имя файла или уникальный идентификатор
+
+            var response = await _httpClient.PostAsync(_configuration["OrderDeliverySystemServiceUrl"] + "/api/catalog/UploadCatalogItemPhoto", content);
+            response.EnsureSuccessStatusCode();
+
+            var uploadResult = await response.Content.ReadFromJsonAsync<UploadPhotoResponce>();
+            return uploadResult.PhotoUrl;
+        }
+
+
+        public async Task<string> UploadImageAsync(string fileName, Stream fileStream)
+        {
+            var formData = new MultipartFormDataContent();
+            var fileContent = new StreamContent(fileStream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg"); // Adjust the media type as needed
+            formData.Add(fileContent, "file", fileName);
+
+            var response = await _httpClient.PostAsync(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Catalog/CatalogItem/UploadCatalogItemPhoto", formData);
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<UploadPhotoResponce>();
+                return result.PhotoUrl;
+
+           
         }
     }
 }

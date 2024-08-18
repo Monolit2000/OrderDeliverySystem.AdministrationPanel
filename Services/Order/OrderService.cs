@@ -134,6 +134,47 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Order
                 throw;
             }
         }
+      
+        public async Task<Result<ChangeOrderItemStatusResult, string>> ChangeOrderItemStatus(Guid orderId, Guid orderItemId, string newStatus)
+        {
+            try
+            {
+                var data = new { OrderId = orderId, OrderItemId = orderItemId, NewStatus = newStatus };
+                var response = await _httpClient.PostAsJsonAsync(_configuration["OrderDeliverySystemServiceUrl"] + "/api/Order/ChengeOrderItemStatus", data);
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new HttpRequestException("Order not found.");
+                }
+                else if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    var errors = JsonSerializer.Deserialize<List<string>>(errorContent);
+                    var errorMessage = string.Join("; ", errors);
+
+                    return Result<ChangeOrderItemStatusResult, string>.Err($"{errorMessage}");
+                }
+                else if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"Server returned error: {response.StatusCode}. Details: {errorContent}");
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<ChangeOrderItemStatusResult>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return Result<ChangeOrderItemStatusResult, string>.Ok(result);
+            }
+
+            catch (Exception ex)
+            {
+                await Console.Out.WriteLineAsync(ex.Message);
+                throw;
+            }
+        }
 
 
 

@@ -1,9 +1,11 @@
 ﻿@page "/orderitemsbydayrange"
 @using OrderDeliverySystem.AdministrationPanel.Services.Order.Models
 @using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@using OrderDeliverySystem.AdministrationPanel.Components.Pages.OrderItemsPage;
+@* @using OrderDeliverySystem.AdministrationPanel.Components.OrderItemsPage; *@
+
 @inject IOrderService orderService
 @inject IJSRuntime JS
-
 
 <div id="notification-container" class="notification-container"></div>
 
@@ -23,7 +25,7 @@
         margin-bottom: 10px;
         border-radius: 5px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-        animation: fadeOut 4s forwards; /* Применяем анимацию исчезновения */
+        animation: fadeOut 4s forwards;
     }
 </style>
 
@@ -38,25 +40,39 @@
     </button>
 </div>
 
-<div>
-    <button class="btn btn-secondary" @onclick="ToggleTableVisibility">
-        @(isTableVisible ? "Hide Table" : "Show Table")
-    </button>
-</div>
-
 @if (isTableVisible)
 {
+    <div>
+        <label>Search:</label>
+        <input type="text" @bind="searchTerm" @bind:event="oninput" placeholder="Enter text to search" />
+    </div>
+
+    <div class="pagination-controls">
+        <label>Items per page:</label>
+        <select @onchange="OnItemsPerPageChanged">
+            <option value="10">10</option>
+            <option value="5">5</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+        </select>
+    </div>
+
     <table class="table">
         <thead>
             <tr>
                 <th>OrderId</th>
                 <th>PhoneNumber</th>
                 <th>OrderItemId</th>
-                <th>ProductName</th>
+                <th>Product</th>
+                <th>Drink</th>
                 <th>UnitPrice</th>
                 <th>Units</th>
+                <th>Delivery</th>
+                <th>Staus</th>
                 <th>
-                    <button class="btn" @onclick="ToggleSortOrder">Deadline</button>
+
+                    Deadline
+            @*         <button class="btn" @onclick="ToggleSortOrder">Deadline</button>
                     @if (isSortedAscending)
                     {
                         <strong>/\</strong>
@@ -64,7 +80,7 @@
                     else
                     {
                         <strong>\/</strong>
-                    }
+                    } *@
                 </th>
             </tr>
         </thead>
@@ -76,9 +92,19 @@
                     <td>@item.PhoneNumber</td>
                     <td>@item.OrderItemId</td>
                     <td>@item.ProductName</td>
+                    <td>@(item.OptionItemName ?? "-" )</td>
                     <td>@item.UnitPrice</td>
                     <td>@item.Units</td>
-                    <td>@item.Deadline</td>
+                    <td>-</td>
+                    <td>
+                        <select class="form-control status @(GetStatusClass(item.Status))" @onchange="(e) => OnStatusChange(item.OrderItemId, e.Value.ToString())">
+                            @foreach (var status in Enum.GetNames<OrderItemStatus>())
+                            {
+                                <option value="@status" class="status-@(status.ToLower())" selected="@(status == item.Status.ToString())">@status</option>
+                            }
+                        </select>
+                    </td>
+                    <td>@item.Deadline.ToString("dd.MM.yyyy HH:mm")</td>
                 </tr>
             }
         </tbody>
@@ -100,13 +126,62 @@
     private string searchTerm = string.Empty;
 
     private int currentPage = 1;
-    private int itemsPerPage = 10;
-    private int totalPages => (OrderItems.Count + itemsPerPage - 1) / itemsPerPage;
+    private int itemsPerPage = 10; // Default value
+    private int totalPages => (FilteredOrderItems.ToList().Count + itemsPerPage - 1) / itemsPerPage;
 
-    private List<OrderItemDtoByDay> PaginatedOrderItems => OrderItems
+    private List<OrderItemDtoByDay> PaginatedOrderItems => FilteredOrderItems
         .Skip((currentPage - 1) * itemsPerPage)
         .Take(itemsPerPage)
         .ToList();
+
+
+    private IEnumerable<OrderItemDtoByDay> FilteredOrderItems
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return OrderItems;
+            }
+
+            var lowerCaseSearchTerm = searchTerm.ToLower();
+
+            var result = OrderItems.Where(item =>
+            {
+                var properties = item.GetType().GetProperties();
+                return properties.Any(prop =>
+                {
+                    var value = prop.GetValue(item)?.ToString().ToLower();
+                    return value != null && value.Contains(lowerCaseSearchTerm);
+                });
+            });
+
+            if(result.Any())
+            {
+                currentPage = 1;
+            }
+
+            return result;
+        }
+    }
+
+
+    private async Task UpdateOrderItemsList()
+    {
+        var result = await orderService.GetAllOrderItemsByDayRange(startDate, endDate);
+
+        if (!result.IsSuccess)
+        {
+            OrderItems.Clear();
+            await JS.InvokeVoidAsync("showNotification", result.Error, "error");
+        }
+
+        OrderItems = result.Value;
+        SortOrderItems();
+        StateHasChanged();
+
+    }
+
 
     private async Task LoadOrderItems()
     {
@@ -115,7 +190,8 @@
         {
             OrderItems = result.Value;
             SortOrderItems();
-            currentPage = 1; // Reset to first page when new data is loaded
+            currentPage = 1; 
+            StateHasChanged(); 
         }
         else
         {
@@ -126,14 +202,18 @@
 
     private void SortOrderItems()
     {
-        if (isSortedAscending)
-        {
-            OrderItems = OrderItems.OrderBy(item => item.Deadline).ToList();
-        }
-        else
-        {
-            OrderItems = OrderItems.OrderByDescending(item => item.Deadline).ToList();
-        }
+
+        OrderItems = OrderItems.OrderByDescending(item => item.Deadline).ToList();
+        // if (isSortedAscending)
+        // {
+        //     OrderItems = OrderItems.OrderBy(item => item.Deadline).ToList();
+        // }
+        // else
+        // {
+           
+        // }
+
+        //StateHasChanged();
     }
 
     private void ToggleSortOrder()
@@ -162,12 +242,79 @@
             currentPage++;
         }
     }
+
+    private void OnItemsPerPageChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out var newItemsPerPage))
+        {
+            itemsPerPage = newItemsPerPage;
+            currentPage = 1; 
+        }
+    }
+
+
+    private async void OnStatusChange(Guid orderItemId, string newStatus)
+    {
+        var orderItem = OrderItems.FirstOrDefault(o => o.OrderItemId == orderItemId);
+
+        if (orderItem == null)
+        {
+            var errorMesage = $"Order not found for OrderId: {orderItemId}";
+            await ShowMessageAsync(errorMesage, "error");
+            return;
+        }
+
+        orderItem.Status = Enum.Parse<OrderItemStatus>(newStatus).ToString();
+
+
+
+        var result = await orderService.ChangeOrderItemStatus(orderItem.OrderId, orderItem.OrderItemId, newStatus);
+        if (!result.IsSuccess)
+        {
+            await ShowMessageAsync($"{result.Error}", "error");
+            await UpdateOrderItemsList();
+
+            return;
+        }
+
+
+        await ShowMessageAsync($"Status changed for OrderId: {orderItemId} to {newStatus}");
+
+        orderItem.Status = Enum.Parse<OrderItemStatus>(newStatus).ToString();
+
+        await UpdateOrderItemsList();
+
+        StateHasChanged();
+    }
+
+    private async Task ShowMessageAsync(string message, string type = "success")
+    {
+        await JS.InvokeVoidAsync("showNotification", message, type);
+    }
+
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Waiting" => "status-waiting",
+            "Paid" => "status-paid",
+            "Failed" => "status-failed",
+            "InWork" => "status-inWork",
+            "Cooked" => "status-cooked",
+            "PickedUp" => "status-pickedUp",
+            "Delivered" => "status-delivered",
+            "Cancelled" => "status-cancelled",
+            _ => ""
+        };
+    }
+
 }
 
 <style>
     .table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: collapse; /* Убирает двойные границы */
         margin: 20px 0;
         font-size: 18px;
         text-align: left;
@@ -177,7 +324,217 @@
 
         .table th, .table td {
             padding: 12px 15px;
-            border: none;
+            /* Добавляет горизонтальные линии */
+            border-bottom: 1px solid #ddd; /* Граница снизу для горизонтальных линий */
+        }
+
+        .table thead th {
+            background-color: #f2f2f2;
+            border-bottom: 2px solid #ddd; /* Более толстая граница для заголовка */
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .table thead th:first-child {
+            border-top-left-radius: 8px;
+        }
+
+        .table thead th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 8px;
+        }
+
+        .table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 8px;
+        }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0;
+    }
+
+        .pagination button {
+            margin: 0 5px;
+        }
+
+    .pagination-controls {
+        margin-bottom: 15px;
+    }
+
+    .status {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .status-waiting {
+        background-color: #ffcccc; /* Светло-красный фон */
+        color: #cc0000; /* Темно-красный текст */
+    }
+
+    .status-paid {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #009900; /* Темно-зеленый текст */
+    }
+
+    .status-failed {
+        background-color: #ffe6e6; /* Светло-красный фон */
+        color: #990000; /* Темно-красный текст */
+    }
+
+    .status-inWork {
+        background-color: #ffffcc; /* Светло-желтый фон */
+        color: #999900; /* Темно-желтый текст */
+    }
+
+    .status-cooked {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #006600; /* Темно-зеленый текст */
+    }
+
+    .status-pickedUp {
+        background-color: #cce5ff; /* Светло-голубой фон */
+        color: #004085; /* Темно-синий текст */
+    }
+
+    .status-delivered {
+        background-color: #d4edda; /* Светло-зеленый фон */
+        color: #155724; /* Темно-зеленый текст */
+    }
+
+    .status-cancelled {
+        background-color: #f8d7da; /* Светло-розовый фон */
+        color: #721c24; /* Темно-красный текст */
+    }
+
+    select.form-control.status-waiting {
+        background-color: #ffcccc; /* Светло-красный фон */
+        color: #cc0000; /* Темно-красный текст */
+    }
+
+    select.form-control.status-paid {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #009900; /* Темно-зеленый текст */
+    }
+
+    select.form-control.status-failed {
+        background-color: #ffe6e6; /* Светло-красный фон */
+        color: #990000; /* Темно-красный текст */
+    }
+
+    select.form-control.status-inWork {
+        background-color: #ffffcc; /* Светло-желтый фон */
+        color: #999900; /* Темно-желтый текст */
+    }
+
+    select.form-control.status-cooked {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #006600; /* Темно-зеленый текст */
+    }
+
+    select.form-control.status-pickedUp {
+        background-color: #cce5ff; /* Светло-голубой фон */
+        color: #004085; /* Темно-синий текст */
+    }
+
+    select.form-control.status-delivered {
+        background-color: #d4edda; /* Светло-зеленый фон */
+        color: #155724; /* Темно-зеленый текст */
+    }
+
+    select.form-control.status-cancelled {
+        background-color: #f8d7da; /* Светло-розовый фон */
+        color: #721c24; /* Темно-красный текст */
+    }
+
+    /* Стили для опций в селекторе */
+    .form-control option.status-waiting {
+        background-color: #ffcccc; /* Светло-красный фон */
+        color: #cc0000; /* Темно-красный текст */
+    }
+
+    .form-control option.status-paid {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #009900; /* Темно-зеленый текст */
+    }
+
+    .form-control option.status-failed {
+        background-color: #ffe6e6; /* Светло-красный фон */
+        color: #990000; /* Темно-красный текст */
+    }
+
+    .form-control option.status-inWork {
+        background-color: #ffffcc; /* Светло-желтый фон */
+        color: #999900; /* Темно-желтый текст */
+    }
+
+    .form-control option.status-cooked {
+        background-color: #ccffcc; /* Светло-зеленый фон */
+        color: #006600; /* Темно-зеленый текст */
+    }
+
+    .form-control option.status-pickedUp {
+        background-color: #cce5ff; /* Светло-голубой фон */
+        color: #004085; /* Темно-синий текст */
+    }
+
+    .form-control option.status-delivered {
+        background-color: #d4edda; /* Светло-зеленый фон */
+        color: #155724; /* Темно-зеленый текст */
+    }
+
+    .form-control option.status-cancelled {
+        background-color: #f8d7da; /* Светло-розовый фон */
+        color: #721c24; /* Темно-красный текст */
+    }
+
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var selects = document.querySelectorAll('select.form-control');
+
+        selects.forEach(function (select) {
+            var options = select.querySelectorAll('option');
+
+            options.forEach(function (option) {
+                var statusClass = option.classList.item(0);
+                var computedStyle = window.getComputedStyle(option);
+                option.style.backgroundColor = computedStyle.backgroundColor;
+                option.style.color = computedStyle.color;
+            });
+        });
+    });
+</script>
+
+@* <style>
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #ddd; /* Added to show horizontal lines */
+    }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            border: 1px solid #ddd; /* Added to show horizontal lines */
         }
 
         .table thead th {
@@ -218,4 +575,22 @@
         .pagination button {
             margin: 0 5px;
         }
-</style>
+
+    .pagination-controls {
+        margin-bottom: 15px;
+    }
+/* </style> */
+
+
+ // private IEnumerable<OrderItemDtoByDay> FilteredOrderItems => OrderItems
+    //     .Where(item => item.OrderId.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.PhoneNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.OrderItemId.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.ProductName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.UnitPrice.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.Units.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    //                    item.Deadline.ToString("dd.MM.yyyy").Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+ *@
+
+  
+

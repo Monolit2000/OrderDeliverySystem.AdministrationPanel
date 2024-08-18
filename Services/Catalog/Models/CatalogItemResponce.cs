@@ -21,5 +21,14 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
 
         [JsonPropertyName("day")]
         public DateTime Day { get; set; }
+
+        [JsonPropertyName("optionalItemName")]
+        public string? OptionalItemName { get; set; }
+
+        [JsonPropertyName("optionalItemDescription")]
+        public string? OptionalItemDescription { get; set; }
+
+        [JsonPropertyName("optionalItemPrice")]
+        public decimal OptionalItemPrice { get; set; } = default;
     }
 }

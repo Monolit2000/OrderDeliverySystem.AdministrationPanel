@@ -2,10 +2,11 @@
 @page "/add-MenuItem/{dateStr:datetime}"
 @using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
 @using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
 @using OrderDeliverySystem.AdministrationPanel.Services.Contracts
 @inject NavigationManager Navigation
 @inject ICatalogService CatalogService
-@attribute [StreamRendering] 
+@attribute [StreamRendering]
 @rendermode InteractiveServer
 
 @code {
@@ -18,6 +19,232 @@
     private AddCatalogItemRequest NewMenuItem { get; set; } = new AddCatalogItemRequest();
     private bool isLoading = false;
 
+    private IBrowserFile uploadedFile;
+
+    private string uploadErrorMessage;
+
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
+
+    private bool showOptionalFields = false;
+    private bool isFileValid = true;
+
+    protected override void OnParametersSet()
+    {
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if(uploadedFile == null)
+        {
+            isFileValid = false;
+        }
+
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadErrorMessage = null;
+        uploadedFile = e.File;
+
+        if (uploadedFile.Size > MaxFileSize)
+        {
+            uploadErrorMessage = "File size exceeds the 5 MB limit.";
+            uploadedFile = null;
+            isFileValid = false;
+        }
+        else
+        {
+            isFileValid = true;
+        }
+    }
+
+    private async Task SaveItem()
+    {
+        isLoading = true;
+
+        if (uploadedFile != null)
+        {
+            var fileName = Path.GetFileName(uploadedFile.Name);
+            using var stream = uploadedFile.OpenReadStream(MaxFileSize);
+            NewMenuItem.PictureUrl = await CatalogService.UploadImageAsync(fileName, stream);
+        }
+
+        await CatalogService.AddCatalogItem(NewMenuItem);
+        isLoading = false;
+        Navigation.NavigateTo("/menu");
+    }
+}
+
+@if (isLoading)
+{
+    <p>Saving...</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(NewMenuItem.PictureUrl))
+    {
+        <div class="form-group">
+            <label for="imagePreview">Image Preview</label>
+            <img id="imagePreview" src="@NewMenuItem.PictureUrl" alt="Image Preview" class="img-thumbnail" style="max-width: 300px; height: auto;" />
+        </div>
+    }
+
+    <div class="container">
+        <h3>Add New Menu Item</h3>
+        @if (!string.IsNullOrEmpty(uploadErrorMessage))
+        {
+            <div class="alert alert-danger">@uploadErrorMessage</div>
+        }
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" class="form-control" @bind="NewMenuItem.Name" />
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" class="form-control" @bind="NewMenuItem.Description"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" id="price" class="form-control" @bind="NewMenuItem.Price" />
+        </div>
+        <div class="form-group">
+            <label for="pictureUrl">Upload Image</label>
+            <InputFile OnChange="HandleFileSelected" />
+        </div>
+        <div class="form-group">
+            <label for="timeToExist">TimeToExist</label>
+            <input type="date" id="timeToExist" class="form-control" @bind="NewMenuItem.TimeToExist" />
+        </div>
+
+        <div class="form-group">
+            <input type="checkbox" id="showOptionalFields" @bind="showOptionalFields" />
+            <label for="showOptionalFields">Show Optional Fields</label>
+        </div>
+
+        <div class="form-group">
+            <label for="optionalItemName">Optional Item Name</label>
+            <input type="text" id="optionalItemName" class="form-control" @bind="NewMenuItem.OptionalItemName" />
+        </div>
+        <div class="form-group">
+            <label for="optionalItemDescription">Optional Item Description</label>
+            <textarea id="optionalItemDescription" class="form-control" @bind="NewMenuItem.OptionalItemDescription"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="optionalItemPrice">Optional Item Price</label>
+            <input type="number" id="optionalItemPrice" class="form-control" @bind="NewMenuItem.OptionalItemPrice" />
+        </div>
+
+        @if (isFileValid)
+        {
+            <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+        }
+    </div>
+}
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .img-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+
+    .alert {
+        margin-bottom: 15px;
+    }
+</style>
+
+
+
+
+
+
+
+
+
+@* @page "/add-MenuItem"
+@page "/add-MenuItem/{dateStr:datetime}"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+@code {
+    [Parameter]
+    public DateTime? date { get; set; }
+
+    [Parameter]
+    public string dateStr { get; set; }
+
+    private AddCatalogItemRequest NewMenuItem { get; set; } = new AddCatalogItemRequest();
+    private bool isLoading = false;
+
+    private IBrowserFile selectedFile;
+
+    private IBrowserFile uploadedFile;
+
+    private string uploadErrorMessage;
+
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
+
+    private bool showOptionalFields = false;
 
     protected override void OnParametersSet()
     {
@@ -43,9 +270,29 @@
         }
     }
 
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadErrorMessage = null;
+        uploadedFile = e.File;
+
+        if (uploadedFile.Size > MaxFileSize)
+        {
+            uploadErrorMessage = "File size exceeds the 5 MB limit.";
+            uploadedFile = null;
+        }
+    }
+
     private async Task SaveItem()
     {
         isLoading = true;
+
+        if (uploadedFile != null)
+        {
+            var fileName = Path.GetFileName(uploadedFile.Name);
+            using var stream = uploadedFile.OpenReadStream(MaxFileSize);
+            NewMenuItem.PictureUrl = await CatalogService.UploadImageAsync(fileName, stream);
+        }
+
         await CatalogService.AddCatalogItem(NewMenuItem);
         isLoading = false;
         Navigation.NavigateTo("/menu");
@@ -68,6 +315,10 @@ else
 
     <div class="container">
         <h3>Add New Menu Item</h3>
+        @if (!string.IsNullOrEmpty(uploadErrorMessage))
+        {
+            <div class="alert alert-danger">@uploadErrorMessage</div>
+        }
         <div class="form-group">
             <label for="name">Name</label>
             <input type="text" id="name" class="form-control" @bind="NewMenuItem.Name" />
@@ -81,15 +332,32 @@ else
             <input type="number" id="price" class="form-control" @bind="NewMenuItem.Price" />
         </div>
         <div class="form-group">
-            <label for="pictureUrl">Image URL</label>
-            <input type="text" id="pictureUrl" class="form-control" @bind="NewMenuItem.PictureUrl" />
-        </div> 
-       
+            <label for="pictureUrl">Upload Image</label>
+            <InputFile OnChange="HandleFileSelected" />
+        </div>
         <div class="form-group">
             <label for="timeToExist">TimeToExist</label>
             <input type="date" id="timeToExist" class="form-control" @bind="NewMenuItem.TimeToExist" />
         </div>
-     
+
+        <div class="form-group">
+            <input type="checkbox" id="showOptionalFields" @bind="showOptionalFields" />
+            <label for="showOptionalFields">Show Optional Fields</label>
+        </div>
+
+        <div class="form-group">
+            <label for="optionalItemName">Optional Item Name</label>
+            <input type="text" id="optionalItemName" class="form-control" @bind="NewMenuItem.OptionalItemName" />
+        </div>
+        <div class="form-group">
+            <label for="optionalItemDescription">Optional Item Description</label>
+            <textarea id="optionalItemDescription" class="form-control" @bind="NewMenuItem.OptionalItemDescription"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="optionalItemPrice">Optional Item Price</label>
+            <input type="number" id="optionalItemPrice" class="form-control" @bind="NewMenuItem.OptionalItemPrice" />
+        </div>
+
         <button class="btn btn-primary" @onclick="SaveItem">Save</button>
     </div>
 }
@@ -138,5 +406,213 @@ else
         padding: 10px 20px;
         font-size: 1rem;
     }
+
+    .alert {
+        margin-bottom: 15px;
+    }
+</style>
+ *@
+
+
+
+
+
+
+
+
+
+
+
+
+
+@* @page "/add-MenuItem"
+@page "/add-MenuItem/{dateStr:datetime}"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+@code {
+    [Parameter]
+    public DateTime? date { get; set; }
+
+    [Parameter]
+    public string dateStr { get; set; }
+
+    private AddCatalogItemRequest NewMenuItem { get; set; } = new AddCatalogItemRequest();
+    private bool isLoading = false;
+
+    private IBrowserFile selectedFile;
+
+    private IBrowserFile uploadedFile;
+
+    private string uploadErrorMessage;
+
+    private const long MaxFileSize = 100 * 1024 * 1024; // 100 MB
+
+    private bool showOptionalFields = false;
+
+    protected override void OnParametersSet()
+    {
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (date.HasValue)
+        {
+            NewMenuItem.TimeToExist = date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+    }
+
+    private async Task SaveItem()
+    {
+        isLoading = true;
+
+        if (uploadedFile != null)
+        {
+            var fileName = Path.GetFileName(uploadedFile.Name);
+            using var stream = uploadedFile.OpenReadStream(MaxFileSize);
+            NewMenuItem.PictureUrl = await CatalogService.UploadImageAsync(fileName, stream);
+        }
+
+        await CatalogService.AddCatalogItem(NewMenuItem);
+        isLoading = false;
+        Navigation.NavigateTo("/menu");
+    }
+}
+
+@if (isLoading)
+{
+    <p>Saving...</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(NewMenuItem.PictureUrl))
+    {
+        <div class="form-group">
+            <label for="imagePreview">Image Preview</label>
+            <img id="imagePreview" src="@NewMenuItem.PictureUrl" alt="Image Preview" class="img-thumbnail" />
+        </div>
+    }
+
+    <div class="container">
+        <h3>Add New Menu Item</h3>
+        @if (!string.IsNullOrEmpty(uploadErrorMessage))
+        {
+            <div class="alert alert-danger">@uploadErrorMessage</div>
+        }
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" class="form-control" @bind="NewMenuItem.Name" />
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" class="form-control" @bind="NewMenuItem.Description"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" id="price" class="form-control" @bind="NewMenuItem.Price" />
+        </div>
+        <div class="form-group">
+            <label for="pictureUrl">Upload Image</label>
+            <InputFile OnChange="HandleFileSelected" />
+        </div>
+        <div class="form-group">
+            <label for="timeToExist">TimeToExist</label>
+            <input type="date" id="timeToExist" class="form-control" @bind="NewMenuItem.TimeToExist" />
+        </div>
+
+        <div class="form-group">
+            <input type="checkbox" id="showOptionalFields" @bind="showOptionalFields" />
+            <label for="showOptionalFields">Show Optional Fields</label>
+        </div>
+
+            <div class="form-group">
+                <label for="optionalItemName">Optional Item Name</label>
+                <input type="text" id="optionalItemName" class="form-control" @bind="NewMenuItem.OptionalItemName" />
+            </div>
+            <div class="form-group">
+                <label for="optionalItemDescription">Optional Item Description</label>
+                <textarea id="optionalItemDescription" class="form-control" @bind="NewMenuItem.OptionalItemDescription"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="optionalItemPrice">Optional Item Price</label>
+                <input type="number" id="optionalItemPrice" class="form-control" @bind="NewMenuItem.OptionalItemPrice" />
+            </div>
+
+        <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+    </div>
+}
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .img-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+
+    .alert {
+        margin-bottom: 15px;
+    }
 </style>
 
+ *@

@@ -12,31 +12,77 @@
     public Guid Id { get; set; }
 
     private EditCatalogItemRequest EditItemRequest { get; set; }
-    private CatalogItemResponce CatalogItemResponce { get; set; } = new CatalogItemResponce();
+    private CatalogItemResponce CatalogItemResponse { get; set; } = new CatalogItemResponce();
 
     private bool isLoading = true;
+    private IBrowserFile selectedFile;
+
+    private IBrowserFile uploadedFile;
+
+    private string uploadErrorMessage;
+
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
+
+    private bool showOptionalFields = false;
+    private bool isFileValid = true;
+
     protected override async Task OnInitializedAsync()
     {
-        // var requestId = Guid.Parse(Id);
+        CatalogItemResponse = await CatalogService.GetCatalogItemById(Id);
 
-        CatalogItemResponce = await CatalogService.GetCatalogItemById(Id);
-
-        EditItemRequest = new EditCatalogItemRequest()
-        {
+        EditItemRequest = new EditCatalogItemRequest
+            {
                 CatalogItemId = Id,
-                Name = CatalogItemResponce.Name,
-                TimeToItemExist = CatalogItemResponce.Day,
-                Description = CatalogItemResponce.Description,
-                Price = CatalogItemResponce.Price,
-                PictureUri = CatalogItemResponce.ImageUri
-        };
-
+                Name = CatalogItemResponse.Name,
+                TimeToItemExist = CatalogItemResponse.Day,
+                Description = CatalogItemResponse.Description,
+                Price = CatalogItemResponse.Price,
+                PictureUri = CatalogItemResponse.ImageUri,
+                OptionalItemName = CatalogItemResponse.OptionalItemName,
+                OptionalItemDescription = CatalogItemResponse.OptionalItemDescription,
+                OptionalItemPrice = CatalogItemResponse.OptionalItemPrice
+            };
         isLoading = false;
+    }
+
+    // protected override void OnInitialized()
+    // {
+    //     if (string.IsNullOrEmpty(CatalogItemResponse.ImageUri))
+    //     {
+    //         isFileValid = false;
+    //     }
+
+      
+    // }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadErrorMessage = null;
+        uploadedFile = e.File;
+
+        if (uploadedFile.Size > MaxFileSize)
+        {
+            uploadErrorMessage = "File size exceeds the 5 MB limit.";
+            uploadedFile = null;
+            isFileValid = false;
+        }
+        else
+        {
+            isFileValid = true;
+        }
     }
 
     private async Task SaveItem()
     {
         isLoading = true;
+
+        if (uploadedFile != null)
+        {
+            var fileName = Path.GetFileName(uploadedFile.Name);
+            using var stream = uploadedFile.OpenReadStream(MaxFileSize);
+            EditItemRequest.PictureUri = await CatalogService.UploadImageAsync(fileName, stream);
+        }
+
         await CatalogService.UpdateItemAsync(EditItemRequest);
         isLoading = false;
         Navigation.NavigateTo("/menu");
@@ -49,18 +95,20 @@
 }
 else
 {
-
     @if (!string.IsNullOrEmpty(EditItemRequest.PictureUri))
     {
         <div class="form-group">
             <label for="imagePreview">Image Preview</label>
-            <img id="imagePreview" src="@EditItemRequest.PictureUri" alt="Image Preview" class="img-thumbnail" />
+            <img id="imagePreview" src="@EditItemRequest.PictureUri" alt="Image Preview" class="img-thumbnail" style="max-width: 300px; height: auto;" />
         </div>
     }
 
-
     <div class="container">
         <h3>Edit Catalog Item</h3>
+        @if (!string.IsNullOrEmpty(uploadErrorMessage))
+        {
+            <div class="alert alert-danger">@uploadErrorMessage</div>
+        }
         <div class="form-group">
             <label for="name">Name</label>
             <input type="text" id="name" class="form-control" @bind="EditItemRequest.Name" />
@@ -74,33 +122,60 @@ else
             <input type="number" id="price" class="form-control" @bind="EditItemRequest.Price" />
         </div>
         <div class="form-group">
-            <label for="imageUri">Image URL</label>
-            <input type="text" id="imageUri" class="form-control" @bind="EditItemRequest.PictureUri" />
+            <label for="imageUri">Upload Image</label>
+            <InputFile OnChange="HandleFileSelected" />
         </div>
+
+     @*    <div class="form-group">
+            <label for="pictureUri">PictureUri</label>
+            <input type="text" id="pictureUri" class="form-control" @bind="EditItemRequest.PictureUri" />
+        </div> *@
+
         <div class="form-group">
             <label for="timeToItemExist">TimeToItemExist</label>
             <input type="date" id="timeToItemExist" class="form-control" @bind="EditItemRequest.TimeToItemExist" />
         </div>
-        <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+
+        <div class="form-group">
+            <input type="checkbox" id="showOptionalFields" @bind="showOptionalFields" />
+            <label for="showOptionalFields">Show Optional Fields</label>
+        </div>
+
+        <div class="form-group">
+            <label for="optionalItemName">Optional Item Name</label>
+            <input type="text" id="optionalItemName" class="form-control" @bind="EditItemRequest.OptionalItemName" />
+        </div>
+        <div class="form-group">
+            <label for="optionalItemDescription">Optional Item Description</label>
+            <textarea id="optionalItemDescription" class="form-control" @bind="EditItemRequest.OptionalItemDescription"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="optionalItemPrice">Optional Item Price</label>
+            <input type="number" id="optionalItemPrice" class="form-control" @bind="EditItemRequest.OptionalItemPrice" />
+        </div>
+
+        @if (isFileValid)
+        {
+            <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+        }
     </div>
 }
 
 <style>
-
     .form-group {
         margin-bottom: 15px;
     }
 
     .img-thumbnail {
-        max-width: 100%;
+        max-width: 300px;
         height: auto;
         display: block;
         margin-bottom: 15px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        .container
+    }
 
-    {
+    .container {
         max-width: 600px;
         margin: 0 auto;
         padding: 20px;
@@ -130,4 +205,192 @@ else
         padding: 10px 20px;
         font-size: 1rem;
     }
+
+    .alert {
+        margin-bottom: 15px;
+    }
 </style>
+
+
+
+
+
+
+
+
+@* @page "/edit-product/{Id:guid}"
+@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using Microsoft.AspNetCore.Components
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject NavigationManager Navigation
+@inject ICatalogService CatalogService
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private EditCatalogItemRequest EditItemRequest { get; set; }
+    private CatalogItemResponce CatalogItemResponse { get; set; } = new CatalogItemResponce();
+
+    private bool isLoading = true;
+    private IBrowserFile selectedFile;
+
+    private IBrowserFile uploadedFile;
+
+    // private bool OptionalItemEx;
+
+    private const long MaxFileSize = 100 * 1024 * 1024; // 100 MB
+
+    private bool showOptionalFields = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CatalogItemResponse = await CatalogService.GetCatalogItemById(Id);
+
+        EditItemRequest = new EditCatalogItemRequest
+        {
+            CatalogItemId = Id,
+            Name = CatalogItemResponse.Name,
+            TimeToItemExist = CatalogItemResponse.Day,
+            Description = CatalogItemResponse.Description,
+            Price = CatalogItemResponse.Price,
+            PictureUri = CatalogItemResponse.ImageUri,
+            OptionalItemName = CatalogItemResponse.OptionalItemName,
+            OptionalItemDescription = CatalogItemResponse.OptionalItemDescription,
+            OptionalItemPrice = CatalogItemResponse.OptionalItemPrice
+        };
+        isLoading = false;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+    }
+
+    private async Task SaveItem()
+    {
+        isLoading = true;
+
+        if (uploadedFile != null)
+        {
+            var fileName = Path.GetFileName(uploadedFile.Name);
+            using var stream = uploadedFile.OpenReadStream(MaxFileSize);
+            EditItemRequest.PictureUri = await CatalogService.UploadImageAsync(fileName, stream);
+        }
+
+        await CatalogService.UpdateItemAsync(EditItemRequest);
+        isLoading = false;
+        Navigation.NavigateTo("/menu");
+    }
+}
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(EditItemRequest.PictureUri))
+    {
+        <div class="form-group">
+            <label for="imagePreview">Image Preview</label>
+            <img id="imagePreview" src="@EditItemRequest.PictureUri" alt="Image Preview" class="img-thumbnail" />
+        </div>
+    }
+
+    <div class="container">
+        <h3>Edit Catalog Item</h3>
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" class="form-control" @bind="EditItemRequest.Name" />
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" class="form-control" @bind="EditItemRequest.Description"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="price">Price</label>
+            <input type="number" id="price" class="form-control" @bind="EditItemRequest.Price" />
+        </div>
+        <div class="form-group">
+            <label for="imageUri">Upload Image</label>
+            <InputFile OnChange="HandleFileSelected" />
+        </div>
+        <div class="form-group">
+            <label for="timeToItemExist">TimeToItemExist</label>
+            <input type="date" id="timeToItemExist" class="form-control" @bind="EditItemRequest.TimeToItemExist" />
+        </div>
+
+        <div class="form-group">
+            <input type="checkbox" id="showOptionalFields" @bind="showOptionalFields" />
+            <label for="showOptionalFields">Show Optional Fields</label>
+        </div>
+
+      
+            <div class="form-group">
+                <label for="optionalItemName">Optional Item Name</label>
+                <input type="text" id="optionalItemName" class="form-control" @bind="EditItemRequest.OptionalItemName" />
+            </div>
+            <div class="form-group">
+                <label for="optionalItemDescription">Optional Item Description</label>
+                <textarea id="optionalItemDescription" class="form-control" @bind="EditItemRequest.OptionalItemDescription"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="optionalItemPrice">Optional Item Price</label>
+                <input type="number" id="optionalItemPrice" class="form-control" @bind="EditItemRequest.OptionalItemPrice" />
+            </div>
+
+        <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+    </div>
+}
+
+<style>
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .img-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        font-weight: bold;
+    }
+
+    .form-group input, .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+</style>
+
+ *@
+

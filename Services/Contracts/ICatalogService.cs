@@ -17,5 +17,10 @@ namespace OrderDeliverySystem.AdministrationPanel.Services.Contracts
         public Task RemoveItemAsync(Guid Id);
 
         public Task<List<CatalogItemsByWeekDto>> GetAllCatalogItemsByWeek();
+
+        public Task<string> UploadPhotoAsync(Stream stream, string contentType, string name, string fileName);
+
+        public Task<string> UploadImageAsync(string fileName, Stream fileStream);
+
     }
 }

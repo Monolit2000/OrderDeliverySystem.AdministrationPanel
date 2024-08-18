@@ -1,0 +1,92 @@
+﻿@using OrderDeliverySystem.AdministrationPanel.Services.Catalog.Models
+@using Microsoft.AspNetCore.Components
+@using OrderDeliverySystem.AdministrationPanel.Services.Contracts
+@inject ICatalogService CatalogService
+@inject NavigationManager Navigation
+@using Blazorise
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+<Modal @bind-IsOpen="IsModalOpen">
+    <ModalHeader>
+        <h3>Add New Menu Item</h3>
+    </ModalHeader>
+    <ModalBody>
+        @if (isLoading)
+        {
+            <p>Saving...</p>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(NewMenuItem.PictureUrl))
+            {
+                <div class="form-group">
+                    <label for="imagePreview">Image Preview</label>
+                    <img id="imagePreview" src="@NewMenuItem.PictureUrl" alt="Image Preview" class="img-thumbnail" />
+                </div>
+            }
+
+            <div class="container">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" class="form-control" @bind="NewMenuItem.Name" />
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" class="form-control" @bind="NewMenuItem.Description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price</label>
+                    <input type="number" id="price" class="form-control" @bind="NewMenuItem.Price" />
+                </div>
+                <div class="form-group">
+                    <label for="pictureUrl">Image URL</label>
+                    <input type="text" id="pictureUrl" class="form-control" @bind="NewMenuItem.PictureUrl" />
+                </div>
+                <div class="form-group">
+                    <label for="timeToExist">TimeToExist</label>
+                    <input type="date" id="timeToExist" class="form-control" @bind="NewMenuItem.TimeToExist" />
+                </div>
+                <button class="btn btn-primary" @onclick="SaveItem">Save</button>
+            </div>
+        }
+    </ModalBody>
+    <ModalFooter>
+        <Button Color="Blazorise.Color.Secondary" @onclick="CloseModal">Close</Button>
+    </ModalFooter>
+</Modal>
+
+@code {
+    [Parameter] public bool IsModalOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsModalOpenChanged { get; set; }
+    [Parameter] public DateTime? Date { get; set; }
+    private AddCatalogItemRequest NewMenuItem { get; set; } = new AddCatalogItemRequest();
+    private bool isLoading = false;
+
+    protected override void OnParametersSet()
+    {
+        if (Date.HasValue)
+        {
+            NewMenuItem.TimeToExist = Date.Value;
+        }
+        else
+        {
+            NewMenuItem.TimeToExist = DateTime.Now.Date;
+        }
+    }
+
+    private async Task SaveItem()
+    {
+        isLoading = true;
+        await CatalogService.AddCatalogItem(NewMenuItem);
+        isLoading = false;
+        await IsModalOpenChanged.InvokeAsync(false);
+        Navigation.NavigateTo("/menu");
+    }
+
+    private void CloseModal()
+    {
+        IsModalOpen = false;
+        IsModalOpenChanged.InvokeAsync(false);
+    }
+}

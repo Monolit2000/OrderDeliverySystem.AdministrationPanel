@@ -1,4 +1,7 @@
-﻿<!DOCTYPE html>
+﻿@using BlazorInputFile
+
+
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,15 +14,22 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="animations.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
     <HeadOutlet />
 </head>
 
 <body>
  
-    <Routes />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
 
+    <Routes />
+    <script src="https://localhost:7078/_content/BlazorInputFile/inputfile.js"></script>
+    @* <script src="_content/BlazorInputFile/inputfile.js"></script> *@
     <script src="_framework/blazor.server.js"></script> 
  
     <script src="js/notification.js"></script>
